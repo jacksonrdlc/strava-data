@@ -1,0 +1,55 @@
+# Cloud Build configuration for deploying to Cloud Run
+# Usage: gcloud builds submit --config cloudbuild.yaml
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/strava-sync:$BUILD_ID'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/strava-sync:latest'
+      - '.'
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/strava-sync:$BUILD_ID'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/strava-sync:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'strava-sync'
+      - '--image=gcr.io/$PROJECT_ID/strava-sync:$BUILD_ID'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--timeout=60m'
+      - '--max-instances=10'
+      - '--min-instances=0'
+      - '--concurrency=80'
+      - '--no-allow-unauthenticated'
+      - '--set-env-vars=NODE_ENV=production'
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/strava-sync:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/strava-sync:latest'
+
+# Build timeout
+timeout: 1200s
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'N1_HIGHCPU_8'
