@@ -115,15 +115,25 @@ class JobProcessor {
         let processed = totalProcessed;
         let failed = 0;
         const failedActivityIds = [];
+        const maxActivities = job.metadata?.max_activities || null;
 
         while (true) {
+            // Check if max_activities limit has been reached
+            if (maxActivities && processed >= maxActivities) {
+                logger.info('Max activities limit reached', {
+                    jobId: job.id,
+                    processed,
+                    maxActivities
+                });
+                break;
+            }
             // Check if approaching timeout (with 2 minute buffer)
             const elapsedTime = Date.now() - startTime;
             if (elapsedTime > this.maxExecutionTime - 120000) {
                 logger.warn('Approaching execution timeout, checkpointing...', {
                     jobId: job.id,
                     page,
-                    elapsed Time: elapsedTime
+                    elapsedTime
                 });
 
                 await this.saveCheckpoint(job.id, page, processed);
@@ -138,9 +148,17 @@ class JobProcessor {
 
             try {
                 // Fetch page of activities from Strava
+                let perPage = STRAVA.MAX_PER_PAGE;
+
+                // If max_activities is set, adjust per_page to avoid fetching more than needed
+                if (maxActivities) {
+                    const remaining = maxActivities - processed;
+                    perPage = Math.min(remaining, STRAVA.MAX_PER_PAGE);
+                }
+
                 const options = {
                     page,
-                    per_page: STRAVA.MAX_PER_PAGE
+                    per_page: perPage
                 };
 
                 if (afterDate) {

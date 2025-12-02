@@ -6,6 +6,10 @@ const express = require('express');
 const DatabaseClient = require('./services/DatabaseClient');
 const TokenManager = require('./services/TokenManager');
 const JobWorker = require('./services/JobWorker');
+const EmbeddingService = require('./services/EmbeddingService');
+const ChatService = require('./services/ChatService');
+const MemoryService = require('./services/MemoryService');
+const JournalService = require('./services/JournalService');
 const errorHandler = require('./middleware/errorHandler');
 const { authenticateIAM, skipAuth } = require('./middleware/auth');
 const logger = require('./utils/logger');
@@ -63,11 +67,42 @@ const tokenManager = new TokenManager(
 
 const worker = new JobWorker(db, tokenManager);
 
+// Initialize AI services (optional - only if API keys are provided)
+let embeddingService = null;
+let memoryService = null;
+let chatService = null;
+let journalService = null;
+
+if (process.env.OPENAI_API_KEY) {
+    logger.info('Initializing EmbeddingService...');
+    embeddingService = new EmbeddingService(db, process.env.OPENAI_API_KEY);
+} else {
+    logger.warn('OPENAI_API_KEY not set - embedding features disabled');
+}
+
+if (process.env.ANTHROPIC_API_KEY) {
+    logger.info('Initializing MemoryService...');
+    memoryService = new MemoryService(db, process.env.ANTHROPIC_API_KEY);
+
+    logger.info('Initializing JournalService...');
+    journalService = new JournalService(db, process.env.ANTHROPIC_API_KEY);
+
+    if (embeddingService) {
+        logger.info('Initializing ChatService...');
+        chatService = new ChatService(db, embeddingService, process.env.ANTHROPIC_API_KEY, memoryService);
+    }
+} else {
+    logger.warn('ANTHROPIC_API_KEY not set - chat and journal features disabled');
+}
+
 // Attach services to request object for access in routes
 app.use((req, res, next) => {
     req.db = db;
     req.tokenManager = tokenManager;
     req.worker = worker;
+    req.embeddingService = embeddingService;
+    req.chatService = chatService;
+    req.journalService = journalService;
     next();
 });
 
@@ -87,7 +122,10 @@ app.use('/api/oauth', require('./routes/oauth'));
 const authMiddleware = process.env.NODE_ENV === 'development' ? skipAuth : authenticateIAM;
 
 app.use('/api/sync', authMiddleware, require('./routes/sync'));
+app.use('/api/sync-beta', authMiddleware, require('./routes/sync-beta'));
 app.use('/api/jobs', authMiddleware, require('./routes/jobs'));
+app.use('/api/chat', skipAuth, require('./routes/chat'));  // Public endpoint for iOS app
+app.use('/api/journal', skipAuth, require('./routes/journal'));  // Public endpoint for iOS app
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -99,7 +137,10 @@ app.get('/', (req, res) => {
             oauth_authorize: 'GET /api/oauth/authorize',
             oauth_callback: 'GET /api/oauth/callback',
             create_sync_job: 'POST /api/sync',
-            get_job_status: 'GET /api/jobs/:jobId'
+            create_sync_beta_job: 'POST /api/sync-beta (max 20 activities)',
+            get_job_status: 'GET /api/jobs/:jobId',
+            chat: 'POST /api/chat',
+            chat_history: 'GET /api/chat/history/:athlete_id'
         },
         documentation: 'https://github.com/yourrepo/strava-sync'
     });
@@ -122,9 +163,10 @@ app.use(errorHandler);
 // Server Startup
 // ============================================================================
 
-const server = app.listen(port, () => {
+const server = app.listen(port, '0.0.0.0', () => {
     logger.info('Server started', {
         port,
+        host: '0.0.0.0',
         nodeEnv: process.env.NODE_ENV || 'production'
     });
 

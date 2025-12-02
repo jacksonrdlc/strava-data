@@ -34,11 +34,11 @@ RUN npm ci --only=production
 # Copy application code from builder
 COPY --from=builder /usr/src/app/src ./src
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /usr/src/app
+# The node image already has a 'node' user, use that for security
+RUN chown -R node:node /usr/src/app
 
 # Switch to non-root user
-USER appuser
+USER node
 
 # Cloud Run provides PORT environment variable
 ENV PORT=8080

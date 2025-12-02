@@ -1,0 +1,36 @@
+# .gcloudignore - Controls what files are uploaded to Cloud Build
+# This file tells gcloud which files to exclude when uploading source
+
+# Git files
+.git/
+.gitignore
+
+# Node modules (will be installed during build)
+node_modules/
+
+# Environment files (will be set via Cloud Run env vars)
+.env
+.env.*
+config/.env
+
+# Data files
+data/
+
+# Documentation
+docs/
+*.md
+!DEPLOYMENT.md
+
+# Development files
+.vscode/
+.idea/
+
+# Scripts not needed for Cloud Run
+scripts/import/
+scripts/database/
+
+# System files
+.DS_Store
+
+# Logs
+*.log

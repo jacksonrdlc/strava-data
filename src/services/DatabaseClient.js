@@ -87,7 +87,7 @@ class DatabaseClient {
     // Sync Job Methods
     // ============================================================================
 
-    async createJob(athleteId, syncType = 'incremental', afterDate = null, beforeDate = null) {
+    async createJob(athleteId, syncType = 'incremental', afterDate = null, beforeDate = null, metadata = {}) {
         const { data, error} = await this.supabase
             .from('sync_jobs')
             .insert({
@@ -96,7 +96,7 @@ class DatabaseClient {
                 status: 'queued',
                 after_date: afterDate,
                 before_date: beforeDate,
-                metadata: {}
+                metadata: metadata
             })
             .select()
             .single();

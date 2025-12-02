@@ -23,7 +23,7 @@ steps:
       - 'push'
       - 'gcr.io/$PROJECT_ID/strava-sync:latest'
 
-  # Deploy to Cloud Run
+  # Deploy to Cloud Run with secrets from Secret Manager
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -39,8 +39,9 @@ steps:
       - '--max-instances=10'
       - '--min-instances=0'
       - '--concurrency=80'
-      - '--no-allow-unauthenticated'
-      - '--set-env-vars=NODE_ENV=production'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=NODE_ENV=production,SUPABASE_URL=https://nkxvjcdxiyjbndjvfmqy.supabase.co'
+      - '--set-secrets=SUPABASE_SERVICE_KEY=runaway-supabase-service:latest,STRAVA_CLIENT_ID=STRAVA_CLIENT_ID:latest,STRAVA_CLIENT_SECRET=STRAVA_CLIENT_SECRET:latest,OAUTH_REDIRECT_URI=OAUTH_REDIRECT_URI:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest'
 
 # Store images in Container Registry
 images:
