@@ -122,7 +122,7 @@ app.use('/api/oauth', require('./routes/oauth'));
 const authMiddleware = process.env.NODE_ENV === 'development' ? skipAuth : authenticateIAM;
 
 app.use('/api/sync', authMiddleware, require('./routes/sync'));
-app.use('/api/sync-beta', authMiddleware, require('./routes/sync-beta'));
+app.use('/api/sync-beta', skipAuth, require('./routes/sync-beta'));  // Public endpoint for iOS app
 app.use('/api/jobs', authMiddleware, require('./routes/jobs'));
 app.use('/api/chat', skipAuth, require('./routes/chat'));  // Public endpoint for iOS app
 app.use('/api/journal', skipAuth, require('./routes/journal'));  // Public endpoint for iOS app
